@@ -10,7 +10,9 @@
 
 #include <botan/assert.h>
 #include <botan/ber_dec.h>
+#include <botan/bigint.h>
 #include <botan/data_src.h>
+#include <botan/der_enc.h>
 #include <botan/exceptn.h>
 #include <botan/pkix_types.h>
 
@@ -179,6 +181,10 @@ class Certificate_Store_MacOS_Impl {
                check_notnull(data_ref, "create CFDataRef of search object failed");
 
                addParameter(key, data_ref.get());
+            }
+
+            void addParameter(CFStringRef key, std::span<const uint8_t> value) {
+               addParameter(key, std::vector<uint8_t>(value.begin(), value.end()));
             }
 
             /**
@@ -390,6 +396,18 @@ std::optional<X509_Certificate> Certificate_Store_MacOS::find_cert_by_raw_subjec
    const std::vector<uint8_t>& subject_hash) const {
    BOTAN_UNUSED(subject_hash);
    throw Not_Implemented("Certificate_Store_MacOS::find_cert_by_raw_subject_dn_sha256");
+}
+
+std::optional<X509_Certificate> Certificate_Store_MacOS::find_cert_by_issuer_dn_and_serial_number(
+   const X509_DN& issuer_dn, std::span<const uint8_t> serial_number) const {
+   DER_Encoder codec;
+   codec.encode(BigInt(serial_number));
+
+   Certificate_Store_MacOS_Impl::Query query;
+   query.addParameter(kSecAttrIssuer, normalizeAndSerialize(issuer_dn));
+   query.addParameter(kSecAttrSerialNumber, codec.get_contents_unlocked());
+
+   return m_impl->findOne(std::move(query));
 }
 
 std::optional<X509_CRL> Certificate_Store_MacOS::find_crl_for(const X509_Certificate& subject) const {
