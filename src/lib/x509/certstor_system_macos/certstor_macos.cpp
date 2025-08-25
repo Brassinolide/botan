@@ -400,14 +400,16 @@ std::optional<X509_Certificate> Certificate_Store_MacOS::find_cert_by_raw_subjec
 
 std::optional<X509_Certificate> Certificate_Store_MacOS::find_cert_by_issuer_dn_and_serial_number(
    const X509_DN& issuer_dn, std::span<const uint8_t> serial_number) const {
-   DER_Encoder codec;
-   codec.encode(BigInt(serial_number));
-
    Certificate_Store_MacOS_Impl::Query query;
    query.addParameter(kSecAttrIssuer, normalizeAndSerialize(issuer_dn));
-   query.addParameter(kSecAttrSerialNumber, codec.get_contents_unlocked());
 
-   return m_impl->findOne(std::move(query));
+   for(const auto& cert : m_impl->findAll(std::move(query))) {
+      if(std::ranges::equal(cert->serial_number(), serial_number)) {
+         return cert;
+      }
+   }
+
+   return std::nullopt;
 }
 
 std::optional<X509_CRL> Certificate_Store_MacOS::find_crl_for(const X509_Certificate& subject) const {
