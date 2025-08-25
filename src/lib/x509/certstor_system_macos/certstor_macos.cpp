@@ -10,9 +10,7 @@
 
 #include <botan/assert.h>
 #include <botan/ber_dec.h>
-#include <botan/bigint.h>
 #include <botan/data_src.h>
-#include <botan/der_enc.h>
 #include <botan/exceptn.h>
 #include <botan/pkix_types.h>
 
@@ -181,10 +179,6 @@ class Certificate_Store_MacOS_Impl {
                check_notnull(data_ref, "create CFDataRef of search object failed");
 
                addParameter(key, data_ref.get());
-            }
-
-            void addParameter(CFStringRef key, std::span<const uint8_t> value) {
-               addParameter(key, std::vector<uint8_t>(value.begin(), value.end()));
             }
 
             /**
@@ -404,7 +398,7 @@ std::optional<X509_Certificate> Certificate_Store_MacOS::find_cert_by_issuer_dn_
    query.addParameter(kSecAttrIssuer, normalizeAndSerialize(issuer_dn));
 
    for(const auto& cert : m_impl->findAll(std::move(query))) {
-      if(std::ranges::equal(cert->serial_number(), serial_number)) {
+      if(std::ranges::equal(cert.serial_number(), serial_number)) {
          return cert;
       }
    }
